@@ -17,8 +17,13 @@ src/main/scala/com/demo/
     Models.scala              -- Domain types: Task, TaskStatus, Priority
   service/
     TaskService.scala         -- TaskStore (immutable state) and query pipelines
+    ValidationService.scala   -- Either-based error handling with ServiceError ADT
   api/
     Routes.scala              -- Request routing via pattern matching
+  typeclass/
+    TypeClasses.scala         -- JsonSerializer type class with givens and extensions
+  functional/
+    State.scala               -- State monad for composable state transitions
 ```
 
 ## Key Concepts Demonstrated
@@ -55,6 +60,24 @@ Query methods demonstrate idiomatic Scala collection pipelines:
 ### Pattern Matching on Request Types
 
 `Router.handle` matches on a `RequestType` enum to dispatch requests, demonstrating nested pattern matching (matching `Option` results inside enum cases) and exhaustive coverage of all request variants.
+
+### Type Classes with Givens and Extension Methods
+
+`JsonSerializer[A]` is a type class trait with a `serialize` extension method. Given instances are provided for primitives (`String`, `Int`, `Double`, `Boolean`), recursive containers (`List[A]`, `Option[A]`), and domain types (`Task`, `Priority`, `TaskStatus`). A `toJson` extension method uses context bounds (`[A: JsonSerializer]`) so any type with a given instance in scope can be serialized with `value.toJson`. The generic `serializeAll` function demonstrates how context bounds propagate through call chains.
+
+Run with: `sbt "runMain com.demo.typeclass.typeClassDemo"`
+
+### Either-based Error Handling
+
+`ServiceError` is a sealed trait ADT with cases `NotFound`, `ValidationError`, and `Conflict`. `ValidatedTaskService` wraps every operation in `Either[ServiceError, T]`, enabling for-comprehension chaining where any validation failure short-circuits the pipeline. The demo shows recovery patterns: `.fold` for dual-branch transformation, `.getOrElse` for defaults, `.orElse` for fallback lookups, `.left.map` for error-side transformation, and pattern matching for granular error dispatch.
+
+Run with: `sbt "runMain com.demo.service.validationDemo"`
+
+### State Monad for Composable State Transitions
+
+A minimal `State[S, A]` monad wraps `S => (S, A)` with `map` and `flatMap` for for-comprehension support. The companion object provides `pure`, `get`, `set`, `modify`, and `inspect`. `TaskStoreActions` re-expresses `TaskStore` operations (`addTask`, `startWork`, `completeTask`, etc.) as `State[TaskStore, A]` values that compose declaratively. Programs are built as pure descriptions and only executed when `.run(initialState)` is called, cleanly separating program construction from execution.
+
+Run with: `sbt "runMain com.demo.functional.stateMonadDemo"`
 
 ## How to Run
 
